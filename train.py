@@ -22,6 +22,7 @@ import transformers
 import utils
 from torch.utils.data import Dataset
 from transformers import Trainer
+from peft import get_peft_config, get_peft_model, LoraConfig, TaskType
 
 IGNORE_INDEX = -100
 DEFAULT_PAD_TOKEN = "[PAD]"
@@ -210,6 +211,14 @@ def train():
         tokenizer=tokenizer,
         model=model,
     )
+
+    # setup LoRA configuration
+    peft_config = LoraConfig(
+        task_type=TaskType.SEQ_2_SEQ_LM, inference_mode=False, r=8, lora_alpha=32, lora_dropout=0.1
+    )
+
+    model = get_peft_model(model, peft_config)
+    model.print_trainable_parameters()
 
     data_module = make_supervised_data_module(tokenizer=tokenizer, data_args=data_args)
     trainer = Trainer(model=model, tokenizer=tokenizer, args=training_args, **data_module)

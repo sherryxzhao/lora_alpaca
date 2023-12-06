@@ -10,10 +10,10 @@ from typing import Optional, Sequence, Union
 
 import openai
 import tqdm
-from openai import openai_object
+import openai
 import copy
 
-StrOrOpenAIObject = Union[str, openai_object.OpenAIObject]
+StrOrOpenAIObject = Union[str, openai.OpenAIObject]
 
 openai_org = os.getenv("OPENAI_ORG")
 if openai_org is not None:
