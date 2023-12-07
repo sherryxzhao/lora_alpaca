@@ -24,6 +24,7 @@ from torch.utils.data import Dataset
 from transformers import Trainer
 from peft import get_peft_config, get_peft_model, LoraConfig, TaskType
 
+auth_token = ''
 IGNORE_INDEX = -100
 DEFAULT_PAD_TOKEN = "[PAD]"
 DEFAULT_EOS_TOKEN = "</s>"
@@ -187,6 +188,7 @@ def train():
     model = transformers.AutoModelForCausalLM.from_pretrained(
         model_args.model_name_or_path,
         cache_dir=training_args.cache_dir,
+        token=auth_token,
     )
 
     tokenizer = transformers.AutoTokenizer.from_pretrained(
@@ -195,6 +197,7 @@ def train():
         model_max_length=training_args.model_max_length,
         padding_side="right",
         use_fast=False,
+        token=auth_token,
     )
     special_tokens_dict = dict()
     if tokenizer.pad_token is None:
@@ -214,7 +217,7 @@ def train():
 
     # setup LoRA configuration
     peft_config = LoraConfig(
-        task_type=TaskType.SEQ_2_SEQ_LM, inference_mode=False, r=8, lora_alpha=32, lora_dropout=0.1
+        task_type=TaskType.CAUSAL_LM, inference_mode=False, r=8, lora_alpha=32, lora_dropout=0.1
     )
 
     model = get_peft_model(model, peft_config)
