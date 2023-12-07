@@ -10,11 +10,11 @@ from typing import Optional, Sequence, Union
 
 import openai
 import tqdm
-from openai import openai_object
+# from openai import openai_object
 import copy
 
-StrOrOpenAIObject = Union[str, openai_object.OpenAIObject]
-
+# StrOrOpenAIObject = Union[str, openai_object.OpenAIObject]
+'''
 openai_org = os.getenv("OPENAI_ORG")
 if openai_org is not None:
     openai.organization = openai_org
@@ -128,7 +128,7 @@ def openai_completion(
         # Return non-tuple if only 1 input and 1 generation.
         (completions,) = completions
     return completions
-
+'''
 
 def _make_w_io_base(f, mode: str):
     if not isinstance(f, io.IOBase):
