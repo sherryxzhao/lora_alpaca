@@ -1,9 +1,7 @@
-numpy
-rouge_score
-fire
-openai
-transformers>=4.28.1
-torch
-sentencepiece
-tokenizers>=0.13.3
-wandb
+accelerate=0.25.0
+numpy=1.24.3
+openai=1.3.7
+peft=0.3.0
+pytorch=1.12.1
+tokenizers=0.13.3
+transformers=4.28.0

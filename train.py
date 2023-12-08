@@ -17,14 +17,14 @@ import logging
 import os.path as osp
 from dataclasses import dataclass, field, fields
 from typing import Dict, Optional, Sequence
-from src.utils import set_logging
+from src.utils.io import set_logging
 
 import torch
 import transformers
 import utils
 from torch.utils.data import Dataset
-from transformers import Trainer
-from peft import get_peft_config, get_peft_model, LoraConfig, TaskType, AuthoPeftModel
+from transformers import Trainer, TrainerCallback
+from peft import get_peft_config, get_peft_model, LoraConfig, TaskType, PeftModel, PeftConfig
 
 IGNORE_INDEX = -100
 DEFAULT_PAD_TOKEN = "[PAD]"
@@ -73,13 +73,19 @@ class DataArguments:
 @dataclass
 class TrainingArguments(transformers.TrainingArguments):
     cache_dir: Optional[str] = field(default=None)
-    logging_dir: Optional[str] = field(default='./traininglog')
     optim: str = field(default="adamw_torch")
     model_max_length: int = field(
         default=512,
         metadata={"help": "Maximum sequence length. Sequences will be right padded (and possibly truncated)."},
     )
 
+class CustomLoggingCallback(TrainerCallback):
+    def __init__(self, logger):
+        self.logger = logger
+
+    def on_log(self, args, state, control, logs=None, **kwargs):
+        if logs is not None:
+            self.logger.info(logs)
 
 def smart_tokenizer_and_embedding_resize(
     special_tokens_dict: Dict,
@@ -203,17 +209,19 @@ def train():
     lora_args, gen_args, model_args, data_args, training_args = parser.parse_args_into_dataclasses()
 
     # set up the logging and log all the parameters
-    set_logging(log_path=gen_args.log_path)
-    assert gen_args.name is not None, f"Student name is not specified!"
-    assert gen_args.gtid is not None, f"Student GTID is not specified!"
-    logger.info(f"name: {gen_args.name}")
-    logger.info(f"GTID: {gen_args.gtid}")
+    # local_rank handles multiple-core training
+    if training_args.local_rank == 0 :
+        set_logging(log_path=gen_args.log_path)
+        assert gen_args.name is not None, f"Student name is not specified!"
+        assert gen_args.gtid is not None, f"Student GTID is not specified!"
+        logger.info(f"name: {gen_args.name}")
+        logger.info(f"GTID: {gen_args.gtid}")
 
-    for field in fields(lora_args):
-        logger.info(f"{field.name}: {getattr(lora_args, field.name)}")
+        for field in fields(lora_args):
+            logger.info(f"{field.name}: {getattr(lora_args, field.name)}")
 
-    for field in fields(training_args):
-        logger.info(f"{field.name}: {getattr(training_args, field.name)}")
+        for field in fields(training_args):
+            logger.info(f"{field.name}: {getattr(training_args, field.name)}")
 
     model = transformers.AutoModelForCausalLM.from_pretrained(
         model_args.model_name_or_path,
@@ -246,47 +254,24 @@ def train():
 
     # setup LoRA configuration
     peft_config = LoraConfig(
-        task_type=TaskType.CAUSAL_LM, inference_mode=False, r=8, lora_alpha=32, lora_dropout=0.1
+        task_type=TaskType.CAUSAL_LM, 
+        inference_mode=False, 
+        r=lora_args.r, 
+        lora_alpha=lora_args.lora_alpha, 
+        lora_dropout=lora_args.lora_dropout
     )
 
     model = get_peft_model(model, peft_config)
     model.print_trainable_parameters()
 
     data_module = make_supervised_data_module(tokenizer=tokenizer, data_args=data_args)
-    trainer = Trainer(model=model, tokenizer=tokenizer, args=training_args, **data_module)
+    trainer = Trainer(model=model, 
+                      tokenizer=tokenizer, 
+                      args=training_args, 
+                      **data_module)
     trainer.train()
     trainer.save_state()
-    trainer.model.save_pretrained(output_dir=training_args.output_dir)
-
-def inference():
-    print("Starting inference process")
-    parser = transformers.HfArgumentParser((ModelArguments))
-    model_args = parser.parse_args_into_dataclasses()
-
-    model = transformers.AutoModelForCausalLM.from_pretrained(
-        model_args.model_name_or_path,
-    )
-
-    tokenizer = transformers.AutoTokenizer.from_pretrained(
-        model_args.model_name_or_path,
-        padding_side="right",
-        use_fast=False,
-    )
-
-    model_to_merge = AuthoPeftModel.from_pretrained(model.to("cuda"), "./output")
-    model = model_to_merge.merge_and_unload()
-
-    model = model.to("cuda")
-    model.eval()
-
-    with open('test.txt', "r") as f:
-        with open('test_output.txt') as fw:
-            for line in f:
-                inputs = tokenizer(line, return_tensors="pt")
-
-                outputs = model.generate(input_ids=inputs["input_ids"].to("cuda"), max_new_tokens=50)
-                ret = tokenizer.batch_decode(outputs.detach().cpu().numpy(), skip_special_tokens=True)[0]
-                fw.write(ret + '\n')
+    trainer.model.save_pretrained(training_args.output_dir)
 
 if __name__ == "__main__":
     train()
