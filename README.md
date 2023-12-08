@@ -30,3 +30,23 @@ python3 inference.py --model_name_or_path <your_path_to_hf_converted_llama_ckpt_
 ```
 
 The LoRA fine-tuning weights are for LLaMA model instead of LLaMA2 because LLaMA2 is pre-trained using bf16 which is not accessible on V100 GPU and disabling bf16 will make the optimizing process unstable.
+
+Here's an example on how to load the LoRA weights, more detailed usage can be found in [inference](inference.py):
+
+```python
+# load the LLaMA weights
+model = transformers.AutoModelForCausalLM.from_pretrained(
+    model_args.model_name_or_path,
+    torch_dtype=torch.float16,
+)
+
+# load the LLaMA tokenizer
+tokenizer = transformers.AutoTokenizer.from_pretrained(
+    model_args.model_name_or_path,
+    padding_side='left',
+    use_fast=False,
+)
+
+# load the LoRA weights
+model = PeftModel.from_pretrained(model,"./output")
+```
