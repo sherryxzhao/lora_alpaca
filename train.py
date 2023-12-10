@@ -62,7 +62,7 @@ class GenArguments:
 
 @dataclass
 class ModelArguments:
-    model_name_or_path: Optional[str] = field(default="meta-llama/Llama-2-7b-hf")
+    model_name_or_path: Optional[str] = field(default="llama-hf/llama-7b-hf")
 
 
 @dataclass
