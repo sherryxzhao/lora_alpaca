@@ -62,7 +62,7 @@ class GenArguments:
 
 @dataclass
 class ModelArguments:
-    model_name_or_path: Optional[str] = field(default="facebook/opt-125m")
+    model_name_or_path: Optional[str] = field(default="meta-llama/Llama-2-7b-hf")
 
 
 @dataclass
