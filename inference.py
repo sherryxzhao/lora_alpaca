@@ -19,6 +19,19 @@ DEFAULT_EOS_TOKEN = "</s>"
 DEFAULT_BOS_TOKEN = "<s>"
 DEFAULT_UNK_TOKEN = "<unk>"
 
+PROMPT_DICT = {
+    "prompt_input": (
+        "Below is an instruction that describes a task, paired with an input that provides further context. "
+        "Write a response that appropriately completes the request.\n\n"
+        "### Instruction:\n{instruction}\n\n### Input:\n{input}\n\n### Response:"
+    ),
+    "prompt_no_input": (
+        "Below is an instruction that describes a task. "
+        "Write a response that appropriately completes the request.\n\n"
+        "### Instruction:\n{instruction}\n\n### Response:"
+    ),
+}
+
 @dataclass
 class ModelArguments:
     model_name_or_path: Optional[str] = field(default="facebook/opt-125m")
@@ -86,11 +99,11 @@ def inference():
     with open('test.txt', "r") as f:
         with open('test_output.txt','w') as fw:
             for line in f:
-                inputs = tokenizer(line, return_tensors="pt")
+                source = PROMPT_DICT['prompt_input'].format_map({'input': line, 'instruction': 'Provide the answer to the question.'})
+                inputs = tokenizer(source, return_tensors="pt")
                 outputs = model.generate(input_ids=inputs["input_ids"].to("cuda"), max_new_tokens=50)
                 ret = tokenizer.batch_decode(outputs.detach().cpu().numpy(), skip_special_tokens=True)[0]
-                fw.write(ret + '\n')
-
+                fw.write(ret.split('Response:')[1] + '\n')
 
 if __name__ == "__main__":
     inference()
